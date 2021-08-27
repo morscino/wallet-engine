@@ -6,3 +6,7 @@
 #### `yoururl/wallet/debit-credit` //this is used to debit and credit wallet, depending on the wallet passed as the debit wallet and the one passed as the creditv wallet
 #### `yoururl/wallet/enable-wallet` //This is used to enable an existing wallet
 #### `yoururl/wallet/disable-wallet` //This is used to disable an existing wallet
+
+### END POINTS PUBLIC POSTMAN LINK
+
+#### https://documenter.getpostman.com/view/7095577/TzzHmDHZ
