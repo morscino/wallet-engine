@@ -7,10 +7,9 @@ import (
 )
 
 type Wallet struct {
-	ID       uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
-	Balance  int       `json:"balance" gorm:"type:bigint;not null"`
-	Currency string    `json:"currency"  gorm:"type:varchar(50);not null"`
-
+	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
+	Balance     int       `json:"balance" gorm:"type:bigint;not null"`
+	Currency    string    `json:"currency"  gorm:"type:varchar(50);not null"`
 	PhoneNumber string    `json:"phoneNumber"  gorm:"type:varchar(100);not null"`
 	Disabled    bool      `json:"disabled" gorm:"type:bool;not null"`
 	CreatedAt   time.Time `json:"createdAt"`

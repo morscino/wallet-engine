@@ -1,11 +1,11 @@
 package config
 
 type Config struct {
-	DB  DatabaseConfig
-	App AppConfig
+	PostgresDB PsqlDatabaseConfig
+	App        AppConfig
 }
 
-type DatabaseConfig struct {
+type PsqlDatabaseConfig struct {
 	Host     string `envconfig:"WALLET_DB_HOST"`
 	Name     string `envconfig:"WALLET_DB_NAME"`
 	Dialect  string `envconfig:"WALLET_DB_DIALECT"`

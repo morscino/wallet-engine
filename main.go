@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 
@@ -14,8 +13,10 @@ import (
 	"github.com/morscino/wallet-engine/database/postgres"
 	"github.com/morscino/wallet-engine/facade"
 	"github.com/morscino/wallet-engine/handlers"
+	"github.com/morscino/wallet-engine/models/transactionmodel"
 	"github.com/morscino/wallet-engine/models/walletmodel"
 	"github.com/morscino/wallet-engine/routes"
+	"github.com/morscino/wallet-engine/service/transactionservice"
 	"github.com/morscino/wallet-engine/service/walletservice"
 	"github.com/morscino/wallet-engine/utility/config"
 )
@@ -30,28 +31,32 @@ func main() {
 		log.Fatalf("Could not load configuration data: %v", err)
 	}
 
-	db := postgres.DbConnect(config.DB)
+	postgresDB := postgres.DbConnect(config.PostgresDB)
 
 	//migrations
 	var WalletModel walletmodel.Wallet
-	db.AutoMigrate(&WalletModel)
+	var TransactionModel transactionmodel.Transaction
+
+	postgresDB.AutoMigrate(&WalletModel)
+	postgresDB.AutoMigrate(&TransactionModel)
 
 	server := gin.New()
 	server.Use(gin.Logger())
 
 	server.Use(gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
 		if err, ok := recovered.(string); ok {
-			//c.String(http.StatusInternalServerError, fmt.Sprintf("error: %s", err))
+
 			c.JSON(http.StatusInternalServerError, gin.H{"status": http.StatusInternalServerError, "message": err})
 		}
 		c.AbortWithStatus(http.StatusInternalServerError)
 	}))
 
-	var ctx context.Context
+	TransactionRepo := transactionservice.NewTransactionService(postgresDB)
+	TransactionHandler := handlers.NewTransactionHandler(TransactionRepo)
 
-	WalletRepo := walletservice.NewWalletervice(db)
-	WalletHandler := handlers.NewWalletHandler(WalletRepo)
-	WalletFacade := *facade.NewWalletFacade(WalletHandler, ctx)
+	WalletRepo := walletservice.NewWalletervice(postgresDB)
+	WalletHandler := handlers.NewWalletHandler(WalletRepo, TransactionHandler)
+	WalletFacade := *facade.NewWalletFacade(WalletHandler, TransactionHandler)
 
 	w := routes.NewWalletRoute(WalletFacade)
 	w.WalletRoutes(server)

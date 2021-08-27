@@ -1,7 +1,6 @@
 package facade
 
 import (
-	"context"
 	"net/http"
 	"strconv"
 
@@ -12,14 +11,14 @@ import (
 )
 
 type WalletFacade struct {
-	ctx           context.Context
-	WalletHandler handlers.WalletHandler
+	WalletHandler      handlers.WalletHandler
+	TransactionHandler handlers.TransactionHandler
 }
 
-func NewWalletFacade(w handlers.WalletHandler, ctx context.Context) *WalletFacade {
+func NewWalletFacade(w handlers.WalletHandler, t handlers.TransactionHandler) *WalletFacade {
 	return &WalletFacade{
-		ctx:           ctx,
-		WalletHandler: w,
+		TransactionHandler: t,
+		WalletHandler:      w,
 	}
 }
 
@@ -106,14 +105,20 @@ func (w WalletFacade) DebitCreditWallet(c *gin.Context) {
 	}
 
 	//debit-credit wallets
-	err = w.WalletHandler.DebitCreditWallet(debitWallet, creditWallet, tranxAmount)
+	txn, err := w.WalletHandler.DebitCreditWallet(debitWallet, creditWallet, tranxAmount)
+
+	data := map[string]string{
+		"responseCode": txn.ResponseCode,
+		"amount":       input.Amount,
+		"refCode":      txn.TransRef,
+	}
 
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": message.TRANSACTION_DECLINED.String()})
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": message.TRANSACTION_DECLINED.String(), "data": data})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": message.TRANSACTION_APPROVED.String()})
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": message.TRANSACTION_APPROVED.String(), "data": data})
 
 }
 
