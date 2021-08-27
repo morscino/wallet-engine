@@ -7,18 +7,20 @@ import (
 )
 
 type Wallet struct {
-	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
-	Balance   float64   `json:"balance" gorm:"type:bigfloat;not null"`
-	Currency  string    `json:"currency"  gorm:"type:varchar(50);not null"`
-	UserID    string    `json:"userId"  gorm:"type:varchar(100);not null"`
-	Disabled  bool      `json:"disabled" gorm:"type:bool;not null"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID       uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
+	Balance  int       `json:"balance" gorm:"type:bigint;not null"`
+	Currency string    `json:"currency"  gorm:"type:varchar(50);not null"`
+
+	PhoneNumber string    `json:"phoneNumber"  gorm:"type:varchar(100);not null"`
+	Disabled    bool      `json:"disabled" gorm:"type:bool;not null"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 type WalletRegistrationData struct {
-	UserID   string `json:"userId" binding:"required"`
-	Currency string `json:"currency" binding:"required"`
+	PhoneNumber string `json:"phoneNumber" binding:"required"`
+	Currency    string `json:"currency" binding:"required"`
+	CountryCode string `json:"countryCode" binding:"required" `
 }
 
 type WalletTransactionInput struct {
@@ -28,5 +30,5 @@ type WalletTransactionInput struct {
 }
 
 type WalletStatusInput struct {
-	UserID string `json:"userId" binding:"required"`
+	PhoneNumber string `json:"phoneNumber" binding:"required"`
 }

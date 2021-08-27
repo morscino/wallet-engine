@@ -7,6 +7,7 @@ require (
 	github.com/google/uuid v1.0.0
 	github.com/joho/godotenv v1.3.0
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/sirupsen/logrus v1.4.2
 	gorm.io/driver/postgres v1.1.0
 	gorm.io/gorm v1.21.14
 )

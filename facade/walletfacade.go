@@ -4,11 +4,11 @@ import (
 	"context"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/morscino/wallet-engine/handlers"
 	"github.com/morscino/wallet-engine/models/walletmodel"
+	"github.com/morscino/wallet-engine/utility/message"
 )
 
 type WalletFacade struct {
@@ -38,23 +38,31 @@ func (w WalletFacade) CreateWallet(c *gin.Context) {
 		return
 	}
 
-	//ensure userid is unique
-	if !w.userIdIsUnique(strings.ToLower(input.UserID)) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Wallet with phone number already exists"})
+	phoneNumber := input.CountryCode + input.PhoneNumber
+
+	//validate phone number
+
+	//ensure PhoneNumber is unique
+	if w.walletExists(phoneNumber) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": message.WALLET_ALREADY_EXISTS.String()})
 		return
 	}
 
 	//Do some check before creation
 
-	newWallet := w.WalletHandler.Createwallet(input.UserID, input.Currency)
+	newWallet, err := w.WalletHandler.Createwallet(phoneNumber, input.Currency)
 
-	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": "Wallet successfully created", "data": newWallet})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"status": http.StatusInternalServerError, "message": message.WALLET_NOT_SUCCESSFULLY_CREATED.String(), "data": nil})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": message.WALLET_SUCCESSFULLY_CREATED.String(), "data": newWallet})
 
 }
 
 func (w WalletFacade) DebitCreditWallet(c *gin.Context) {
 	var input walletmodel.WalletTransactionInput
-	wallet := walletmodel.Wallet{}
 
 	err := c.ShouldBind(&input)
 	if err != nil {
@@ -63,26 +71,26 @@ func (w WalletFacade) DebitCreditWallet(c *gin.Context) {
 	}
 
 	//get debit and credit wallets
-	debitWallet := w.WalletHandler.WalletService.GetWalletByUserId(input.FromWallet)
-	creditWallet := w.WalletHandler.WalletService.GetWalletByUserId(input.ToWallet)
+	debitWallet := w.WalletHandler.WalletService.GetWalletByPhoneNumber(input.FromWallet)
+	creditWallet := w.WalletHandler.WalletService.GetWalletByPhoneNumber(input.ToWallet)
 
-	if wallet == debitWallet {
-		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusBadRequest, "message": "Debit wallet does not exist"})
+	if !w.walletExists(input.FromWallet) {
+		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusBadRequest, "message": message.DEBIT_WALLET_DOES_NOT_EXIST.String()})
 		return
 	}
 
-	if wallet == creditWallet {
-		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusBadRequest, "message": "Credit wallet does not exist"})
+	if !w.walletExists(input.ToWallet) {
+		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusBadRequest, "message": message.CREDIT_WALLET_DOES_NOT_EXIST.String()})
 		return
 	}
 
 	//check if enabled
-	if debitWallet.Disabled {
-		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusOK, "message": "Wallet is disabled, please contact the administrator"})
+	if w.walletIsDisabled(input.FromWallet) {
+		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusOK, "message": message.WALLET_IS_DISABLED.String()})
 		return
 	}
 
-	tranxAmount, _ := strconv.ParseFloat(input.Amount, 64)
+	tranxAmount, _ := strconv.Atoi(input.Amount)
 
 	//check for negative amount
 	if tranxAmount < 1 {
@@ -93,14 +101,19 @@ func (w WalletFacade) DebitCreditWallet(c *gin.Context) {
 	tranxAmount *= 100
 	//check if it debit wallet has sufficient fund
 	if debitWallet.Balance < tranxAmount {
-		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusOK, "message": "Insufficient funds"})
+		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusOK, "message": message.INSUFFICIEND_FUND.String()})
 		return
 	}
 
 	//debit-credit wallets
-	w.WalletHandler.DebitCreditWallet(debitWallet, creditWallet, tranxAmount)
+	err = w.WalletHandler.DebitCreditWallet(debitWallet, creditWallet, tranxAmount)
 
-	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": "transaction done"})
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": message.TRANSACTION_DECLINED.String()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": message.TRANSACTION_APPROVED.String()})
 
 }
 
@@ -113,10 +126,25 @@ func (w WalletFacade) EnableWallet(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusBadRequest, "error": err.Error()})
 		return
 	}
-	enabled := w.WalletHandler.EnableWallet(input.UserID)
-	_ = enabled
 
-	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": "Wallet Successfully Enabled"})
+	if !w.walletExists(input.PhoneNumber) {
+		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusBadRequest, "message": message.WALLET_NOT_EXIST.String()})
+		return
+	}
+
+	if !w.walletIsDisabled(input.PhoneNumber) {
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": message.WALLET_ALREADY_ENABLED.String()})
+		return
+	}
+
+	err = w.WalletHandler.EnableWallet(input.PhoneNumber)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"status": http.StatusInternalServerError, "message": message.WALLET_NOT_SUCCESSFULLY_ENABLED.String()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": message.WALLET_SUCCESSFULLY_ENABLED.String()})
 
 }
 
@@ -129,20 +157,43 @@ func (w WalletFacade) DisableWallet(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusBadRequest, "error": err.Error()})
 		return
 	}
-	enabled := w.WalletHandler.DisableWallet(input.UserID)
-	_ = enabled
 
-	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": "Wallet Successfully Disabled"})
+	if !w.walletExists(input.PhoneNumber) {
+		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusBadRequest, "message": message.WALLET_NOT_EXIST.String()})
+		return
+	}
+
+	if w.walletIsDisabled(input.PhoneNumber) {
+		c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": message.WALLET_ALREADY_DISABLED.String()})
+		return
+	}
+	err = w.WalletHandler.DisableWallet(input.PhoneNumber)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"status": http.StatusInternalServerError, "message": message.WALLET_NOT_SUCCESSFULLY_DISABLED.String()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": message.WALLET_SUCCESSFULLY_DISABLED.String()})
 
 }
 
-func (w WalletFacade) userIdIsUnique(userId string) bool {
+func (w WalletFacade) walletExists(phoneNumber string) bool {
 	exists := true
+	emptyWallet := walletmodel.Wallet{}
 
-	wallet := w.WalletHandler.WalletService.GetWalletByUserId(userId)
-	if wallet.UserID != "" {
+	wallet := w.WalletHandler.WalletService.GetWalletByPhoneNumber(phoneNumber)
+
+	if wallet == emptyWallet {
 		exists = false
 	}
 
 	return exists
+
+}
+
+func (w WalletFacade) walletIsDisabled(PhoneNumber string) bool {
+
+	wallet := w.WalletHandler.WalletService.GetWalletByPhoneNumber(PhoneNumber)
+
+	return wallet.Disabled
 }

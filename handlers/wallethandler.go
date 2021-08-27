@@ -17,61 +17,89 @@ func NewWalletHandler(w walletservice.WalletRepository) WalletHandler {
 
 }
 
-func (w WalletHandler) Createwallet(userId, currency string) walletmodel.Wallet {
+var e error
+
+func (w WalletHandler) Createwallet(phoneNumber, currency string) (walletmodel.Wallet, error) {
 
 	id := uuid.New()
 
 	wallet := walletmodel.Wallet{
-		ID:        id,
-		UserID:    userId,
-		Currency:  currency,
-		Balance:   0,
-		Disabled:  false,
-		CreatedAt: time.Now(),
+		ID:          id,
+		PhoneNumber: phoneNumber,
+		Currency:    currency,
+		Balance:     500000,
+		Disabled:    false,
+		CreatedAt:   time.Now(),
 	}
 
-	w.WalletService.CreateWallet(wallet)
+	wa, err := w.WalletService.CreateWallet(wallet)
 
-	return wallet
+	if err != nil {
+		e = err
+	}
+
+	return wa, e
 
 }
 
-func (w WalletHandler) DebitCreditWallet(dr, cr walletmodel.Wallet, amount float64) {
-	w.debitWallet(dr, amount)
+func (w WalletHandler) DebitCreditWallet(dr, cr walletmodel.Wallet, amount int) error {
+	err := w.debitWallet(dr, amount)
+	if err == nil {
+		err = w.creditWallet(cr, amount)
+	}
 
-	w.creditWallet(cr, amount)
+	return err
+
 }
 
-func (w WalletHandler) debitWallet(wallet walletmodel.Wallet, amount float64) {
+func (w WalletHandler) debitWallet(wallet walletmodel.Wallet, amount int) error {
 	newWalletBalance := wallet.Balance - amount
 
-	w.WalletService.UpdateWalletBalance(wallet.UserID, newWalletBalance)
+	err := w.WalletService.UpdateWalletBalance(wallet.PhoneNumber, newWalletBalance)
+
+	if err != nil {
+		e = err
+	}
+	return e
 
 	//send debit notification
 
 }
 
-func (w WalletHandler) creditWallet(wallet walletmodel.Wallet, amount float64) {
+func (w WalletHandler) creditWallet(wallet walletmodel.Wallet, amount int) error {
 	newWalletBalance := wallet.Balance + amount
 
-	w.WalletService.UpdateWalletBalance(wallet.UserID, newWalletBalance)
+	err := w.WalletService.UpdateWalletBalance(wallet.PhoneNumber, newWalletBalance)
 
-	//send credit botification
+	if err != nil {
+		e = err
+	}
+	return e
 
-}
-
-func (w WalletHandler) EnableWallet(userId string) bool {
-
-	enabled := w.WalletService.UpdateWalletStatus(userId, false)
-
-	return enabled
+	//send credit notification
 
 }
 
-func (w WalletHandler) DisableWallet(userId string) bool {
+func (w WalletHandler) EnableWallet(phoneNumber string) error {
 
-	disabled := w.WalletService.UpdateWalletStatus(userId, true)
+	err := w.WalletService.UpdateWalletStatus(phoneNumber, false)
 
-	return disabled
+	if err != nil {
+		e = err
+	}
+
+	return e
+
+}
+
+func (w WalletHandler) DisableWallet(phoneNumber string) error {
+
+	err := w.WalletService.UpdateWalletStatus(phoneNumber, true)
+
+	if err != nil {
+		e = err
+	}
+
+	return e
 
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"log"
 
@@ -35,7 +36,17 @@ func main() {
 	var WalletModel walletmodel.Wallet
 	db.AutoMigrate(&WalletModel)
 
-	server := gin.Default()
+	server := gin.New()
+	server.Use(gin.Logger())
+
+	server.Use(gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
+		if err, ok := recovered.(string); ok {
+			//c.String(http.StatusInternalServerError, fmt.Sprintf("error: %s", err))
+			c.JSON(http.StatusInternalServerError, gin.H{"status": http.StatusInternalServerError, "message": err})
+		}
+		c.AbortWithStatus(http.StatusInternalServerError)
+	}))
+
 	var ctx context.Context
 
 	WalletRepo := walletservice.NewWalletervice(db)
