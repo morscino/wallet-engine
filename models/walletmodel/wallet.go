@@ -22,7 +22,11 @@ type WalletRegistrationData struct {
 }
 
 type WalletTransactionInput struct {
-	FromWallet string  `json:"fromWallet" binding:"required"`
-	ToWallet   string  `json:"toWallet" binding:"required"`
-	Amount     float64 `json:"amount" binding:"required"`
+	FromWallet string `json:"fromWallet" binding:"required"`
+	ToWallet   string `json:"toWallet" binding:"required"`
+	Amount     string `json:"amount" binding:"required"`
+}
+
+type WalletStatusInput struct {
+	UserID string `json:"userId" binding:"required"`
 }

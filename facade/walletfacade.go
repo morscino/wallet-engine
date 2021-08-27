@@ -3,6 +3,7 @@ package facade
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -53,15 +54,27 @@ func (w WalletFacade) CreateWallet(c *gin.Context) {
 
 func (w WalletFacade) DebitCreditWallet(c *gin.Context) {
 	var input walletmodel.WalletTransactionInput
+	wallet := walletmodel.Wallet{}
+
 	err := c.ShouldBind(&input)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusBadRequest, "error": err.Error()})
 		return
 	}
 
-	//get debit wallet
+	//get debit and credit wallets
 	debitWallet := w.WalletHandler.WalletService.GetWalletByUserId(input.FromWallet)
 	creditWallet := w.WalletHandler.WalletService.GetWalletByUserId(input.ToWallet)
+
+	if wallet == debitWallet {
+		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusBadRequest, "message": "Debit wallet does not exist"})
+		return
+	}
+
+	if wallet == creditWallet {
+		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusBadRequest, "message": "Credit wallet does not exist"})
+		return
+	}
 
 	//check if enabled
 	if debitWallet.Disabled {
@@ -69,20 +82,57 @@ func (w WalletFacade) DebitCreditWallet(c *gin.Context) {
 		return
 	}
 
-	tranxAmount := float64(input.Amount) * 100
+	tranxAmount, _ := strconv.ParseFloat(input.Amount, 64)
 
-	//check if it has sufficient fund
-	if debitWallet.Balance < (tranxAmount) {
+	//check for negative amount
+	if tranxAmount < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusBadRequest, "message": "Invalid amount"})
+		return
+	}
+
+	tranxAmount *= 100
+	//check if it debit wallet has sufficient fund
+	if debitWallet.Balance < tranxAmount {
 		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusOK, "message": "Insufficient funds"})
 		return
 	}
 
-	//debit from wallet
-	w.WalletHandler.DebitWallet(debitWallet, tranxAmount)
-	//credit to wallet
-	w.WalletHandler.CreditWallet(creditWallet, tranxAmount)
+	//debit-credit wallets
+	w.WalletHandler.DebitCreditWallet(debitWallet, creditWallet, tranxAmount)
 
 	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": "transaction done"})
+
+}
+
+func (w WalletFacade) EnableWallet(c *gin.Context) {
+
+	var input walletmodel.WalletStatusInput
+
+	err := c.ShouldBind(&input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusBadRequest, "error": err.Error()})
+		return
+	}
+	enabled := w.WalletHandler.EnableWallet(input.UserID)
+	_ = enabled
+
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": "Wallet Successfully Enabled"})
+
+}
+
+func (w WalletFacade) DisableWallet(c *gin.Context) {
+
+	var input walletmodel.WalletStatusInput
+
+	err := c.ShouldBind(&input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusBadRequest, "error": err.Error()})
+		return
+	}
+	enabled := w.WalletHandler.DisableWallet(input.UserID)
+	_ = enabled
+
+	c.JSON(http.StatusOK, gin.H{"status": http.StatusOK, "message": "Wallet Successfully Disabled"})
 
 }
 

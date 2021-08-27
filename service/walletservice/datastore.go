@@ -15,6 +15,7 @@ type WalletRepository interface {
 	CreateWallet(wm walletmodel.Wallet) walletmodel.Wallet
 	GetWalletByUserId(userId string) walletmodel.Wallet
 	UpdateWalletBalance(userId string, amount float64)
+	UpdateWalletStatus(userId string, status bool) bool
 }
 
 func NewWalletervice(database *gorm.DB) WalletRepository {
@@ -46,5 +47,13 @@ func (w WalletService) UpdateWalletBalance(userId string, amount float64) {
 	var wallet walletmodel.Wallet
 	w.db.Model(&wallet).Where("user_id=?", userId).Update("balance", amount)
 	//db.Model(&user).Update("name", "hello")
+
+}
+
+func (w WalletService) UpdateWalletStatus(userId string, status bool) bool {
+	var wallet walletmodel.Wallet
+	w.db.Model(&wallet).Where("user_id=?", userId).Update("disabled", status)
+
+	return status
 
 }

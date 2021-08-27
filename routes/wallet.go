@@ -20,6 +20,8 @@ func (c WalletRoute) WalletRoutes(router *gin.Engine) {
 		WalletGroup.GET("/", c.WalletFacade.Test)
 		WalletGroup.POST("/create-wallet", c.WalletFacade.CreateWallet)
 		WalletGroup.POST("/debit-credit", c.WalletFacade.DebitCreditWallet)
+		WalletGroup.PUT("/enable-wallet", c.WalletFacade.EnableWallet)
+		WalletGroup.PUT("/disable-wallet", c.WalletFacade.DisableWallet)
 
 	}
 
